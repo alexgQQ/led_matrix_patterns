@@ -43,6 +43,19 @@ typedef struct Particle {
   int hue_drift = 0;
 } particle;
 
+typedef struct Point {
+  uint8_t x;
+  uint8_t y;
+} point;
+
+const uint8_t snake_length = 4;
+typedef struct Snake {
+  point points[snake_length];
+  unsigned long start_time = 0;
+  unsigned int delay = 0;
+  int hue_drift = 0;
+} snake;
+
 // Math helpers
 
 int sine_wave(int amp, float freq, long time, int offset);
@@ -63,6 +76,7 @@ int rising_calc(unsigned long time, int count, float vel);
 int falling_calc_rand(unsigned long time, int count, float vel);
 int rising_calc_rand(unsigned long time, int count, float vel);
 int gen_seg(int n_segments);
+point* adjacent_points(point pnt);
 
 class LED_Bars {
 
@@ -91,6 +105,9 @@ private:
   uint32_t from_hue(uint16_t hue, int drift);
   void calc_bounce(int n_waves, float freq, bool drift, int (*pos_func)(int amp, float freq, long time, int offset));
   void cycle_sparkles(bool drift);
+  bool point_collision(point pnt);
+  bool valid_point(point pnt);
+  snake create_snake();
 
   particle particles[LED_SEGMENTS][LED_PARTICLES];
   int prev_seg = -1;
@@ -104,7 +121,7 @@ private:
   To not duplicate this value I just compute the number of patterns
   based on this array size.
   */
-  pattern_func patterns[17] = {
+  pattern_func patterns[18] = {
     &fill,
     &glow,
     &sparkles,
@@ -122,6 +139,7 @@ private:
     &falling_drift_sparkles,
     &falling_drift_sparkle_waves,
     &rising_drift_sparkle_waves,
+    &snakes,
   };
   int num_patterns = sizeof(patterns) / sizeof(patterns[0]);
   uint8_t pattern_index = 0;
@@ -165,6 +183,9 @@ private:
   int color_index_addr = 2;
   uint32_t color(int pos, int seg, int drift);
 
+  const uint8_t snake_count = 4;
+  snake snake_insts[4];
+
 public:
 
   uint16_t n_segments;
@@ -177,6 +198,10 @@ public:
     segment *old = segments;
     for(int i = 0; i < n_segs; ++i)
         *old++ = *segs++;
+
+    for (int i = 0; i < snake_count; i++) {
+      snake_insts[i] = create_snake();
+    }
   };
 
   void begin();
@@ -216,6 +241,7 @@ public:
   void reverse_chaser();
   void reverse_chaser_wave();
   void rising_drift_sparkle_waves();
+  void snakes();
 
   // Color functions
   uint32_t red(int pos, int seg, int drift);

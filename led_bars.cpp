@@ -575,6 +575,154 @@ void LED_Bars::rising_drift_sparkle_waves() {
   cycle_particles(active_seg, no_gen, true, true, rising_calc);
 }
 
+// Push a point onto a point array and drop the last point value
+void arr_push(point value, point arr[], unsigned int arr_size) {
+  point buffer1 = value;
+  point buffer2;
+  for (int i = 0; i < arr_size; i++) {
+    buffer2 = arr[i];
+    arr[i] = buffer1;
+    buffer1 = buffer2;
+  }
+}
+
+bool point_eq(point point1, point point2) {
+  return point1.x == point2.x && point1.y == point2.y;
+}
+
+// Is a given point already in a point array
+bool point_in_arr(point pnt, point arr[], unsigned int arr_size) {
+  for (int i = 0; i < arr_size; i++) {
+    if (point_eq(pnt, arr[i]) == true) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Shuffle an array
+void shuffle(int *array, size_t n) {
+  size_t i;
+  for (i = 0; i < n - 1; i++) {
+    size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+    int t = array[j];
+    array[j] = array[i];
+    array[i] = t;
+  }
+}
+
+point random_adjacent(point orig, int val) {
+  point pnt;
+  switch (val)
+  {
+  case 0:
+    pnt = { .x = orig.x + 1, .y = orig.y };
+    break;
+  case 1:
+    pnt = { .x = orig.x - 1, .y = orig.y };
+    break;
+  case 2:
+    pnt = { .x = orig.x, .y = orig.y + 1 };
+    break;
+  case 3:
+    pnt = { .x = orig.x, .y = orig.y - 1 };
+    break;
+  default:
+    pnt = { .x = orig.x, .y = orig.y - 1 };
+    break;
+  }
+  return pnt;
+}
+
+/*
+Return the positions above, below, left and right of a given point.
+The order of the returned points are somewhat random to remove
+affinity for the directionality of the snakes' movements
+*/
+point* adjacent_points(point pnt) {
+  int disp[4] = { 0, 1, 2, 3 };
+  shuffle(disp, 4);
+  static point next_points[4];
+  for (int i = 0; i < 4; i++) {
+    next_points[i] = random_adjacent(pnt, disp[i]);
+  }
+  return next_points;
+}
+
+// Does a given point intersect with any other points
+bool LED_Bars::point_collision(point pnt) {
+  for (int i = 0; i < snake_count; i++) {
+    if (point_in_arr(pnt, snake_insts[i].points, snake_length) == true) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Is a given point within the led space and not occupied
+bool LED_Bars::valid_point(point pnt) {
+  uint8_t x = pnt.x;
+  uint8_t y = pnt.y;
+
+  if (x >= n_segments) {
+    return false;
+  } else if (y >= led_per_segment) {
+    return false;
+  }
+  if (point_collision(pnt) == true) {
+    return false;
+  }
+  return true;
+}
+
+snake LED_Bars::create_snake() {
+  point pnt;
+  snake snake_inst;
+  do {
+    pnt = { .x = random(0, n_segments), .y = random(0, led_per_segment) };
+  } while (!(valid_point(pnt) == true));
+  for (int i = 0; i < snake_length; i++) {
+    snake_inst.points[i] = pnt;  
+  }
+  snake_inst.hue_drift = random(-3000, 3001);
+  snake_inst.start_time = millis();
+  snake_inst.delay = random(250, 750);
+  return snake_inst;
+}
+
+// Show a series of moving segments similar to the classic snake game
+void LED_Bars::snakes() {
+  point pnt;
+  point pnt1;
+  bool done = false;
+  int bright = 125;
+
+  for (int i = 0; i < snake_count; i++) {
+    for (int j = 0; j < snake_length; j++) {
+      pnt = snake_insts[i].points[j];
+      strip.setPixelColor(map_to_position(pnt.x, pnt.y), color(pnt.y, pnt.x, snake_insts[i].hue_drift), bright);
+    }
+
+    if (millis() - snake_insts[i].start_time > snake_insts[i].delay) {
+      snake_insts[i].start_time = millis();
+      pnt = snake_insts[i].points[0];
+
+      point* next_pnts = adjacent_points(pnt);
+      int k = 0;
+      for (k = 0; k < 4; k++) {
+        if (valid_point(*(next_pnts + k)) == true) {
+          arr_push(*(next_pnts + k), snake_insts[i].points, snake_length);
+          break;
+        }
+      }
+      if (k >= 4) {
+        // Snake failed to find a valid spot and may be stuck
+        snake_insts[i] = create_snake();
+      }
+    }
+  }
+}
+
 // Color Functions
 
 /*
