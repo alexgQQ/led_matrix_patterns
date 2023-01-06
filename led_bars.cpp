@@ -180,15 +180,21 @@ void LED_Bars::render() {
   strip.show();
 }
 
-unsigned int LED_Bars::map_to_segment(unsigned int pos, unsigned int seg_number) {
-  segment seg = segments[seg_number];
-  if (pos >= 60) {
-    pos = 60 - 1;
-  }
-  if (seg.top_down) {
-    return seg.top_led + pos;
+unsigned int LED_Bars::map_to_position(uint8_t x, uint8_t y) {
+  segment seg;
+  unsigned int pos;
+  if (vertical == true) {
+    seg = segments[x];
+    pos = y;
   } else {
-    return seg.top_led - pos;
+    seg = segments[y];
+    pos = x;
+  }
+    
+  if (seg.reverse == true) {
+    return seg.first_position - pos;
+  } else {
+    return seg.first_position + pos;
   }
 }
 
@@ -205,7 +211,7 @@ void LED_Bars::pattern() {
 void LED_Bars::fill() {
   for (int i = 0; i < n_segments; i++) {
     for (int j = 0; j < led_per_segment; j++) {
-      strip.setPixelColor(map_to_segment(j, i), color(j, i, 0.0), 125);
+      strip.setPixelColor(map_to_position(i, j), color(j, i, 0.0), 125);
     }
   }
 }
@@ -215,7 +221,7 @@ void LED_Bars::glow() {
   int bright = sine_wave(125, 0.0002, millis(), 125);
   for (int i = 0; i < n_segments; i++) {
     for (int j = 0; j < led_per_segment; j++) {
-      strip.setPixelColor(map_to_segment(j, i), color(j, i, 0.0), bright);
+      strip.setPixelColor(map_to_position(i, j), color(j, i, 0.0), bright);
     }
   }
 }
@@ -243,7 +249,7 @@ void LED_Bars::calc_bounce(
     for (int j = 0; j < n_segments; j++) {
       int time_offset = (j * pos_offset) + (i * line_offset);
       int pos = pos_func(amplitude, freq, millis() + time_offset, amplitude);
-      strip.setPixelColor(map_to_segment(pos, j), color(pos, j, 0.0), 125);
+      strip.setPixelColor(map_to_position(j, pos), color(pos, j, 0.0), 125);
     }
   }
 }
@@ -325,7 +331,7 @@ void LED_Bars::cycle_sparkles(bool drift) {
           // Render valid sparkle particles
           hue_drift_value = drift == true ? particles[i][j].hue_drift : 0;
           pos = particles[i][j].position;
-          pos = map_to_segment(pos, i);
+          pos = map_to_position(i, pos);
           strip.setPixelColor(pos, color(pos, i, hue_drift_value), bright);
         }
       }
@@ -452,7 +458,7 @@ void LED_Bars::cycle_particles(
         if (!(position == 0 && i != active_seg)) {
           bright = glow == true ? sine_wave(125, freq, millis(), 125) : 125;
           hue_drift_value = hue_drift == true ? particles[i][j].hue_drift : 0;
-          strip.setPixelColor(map_to_segment(position, i), color(position, i, hue_drift_value), bright);
+          strip.setPixelColor(map_to_position(i, position), color(position, i, hue_drift_value), bright);
         }
       }
     }

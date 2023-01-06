@@ -31,8 +31,8 @@ of `segment` types. These define how the strips/segments are connected.
   of the second segment is as the bottom. 
 */
 typedef struct Segment {
-  unsigned int top_led;   // Index value of the led at the top of the segment
-  bool top_down;          // Does the segment input connect to the top or bottom?
+  unsigned int first_position;
+  bool reverse;
 } segment;
 
 typedef struct Particle {
@@ -73,6 +73,7 @@ private:
 
   Adafruit_NeoPixel strip;
   bool is_off = true;
+  bool vertical = true;
 
   // Member arrays have to be intiailized with a fixed static var
   segment segments[LED_SEGMENTS];
@@ -83,7 +84,7 @@ private:
   uint8_t brightness = 55;
   int brightness_addr = 3;
 
-  unsigned int map_to_segment(unsigned int pos, unsigned int seg_number);
+  unsigned int map_to_position(uint8_t x, uint8_t y);
   uint32_t vertical_gradient(int pos, uint16_t color_set[], int n_colors);
   uint32_t vertical_partitions(int pos, uint16_t *color_set, uint16_t n_colors);
   void cycle_particles(unsigned int active_seg, bool no_gen, bool glow, bool hue_drift, int (*pos_func)(unsigned long time, int count, float vel));

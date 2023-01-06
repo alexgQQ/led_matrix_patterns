@@ -17,10 +17,10 @@ the segments are wired from left to right in order. For now these are hardcoded 
 but would be good to fix the wiring and potentially construct this automatically.
 */
 segment segments[LED_SEGMENTS] = {
-  [0] = { .top_led = 119, .top_down = false },
-  [1] = { .top_led = 0, .top_down = true },
-  [2] = { .top_led = 120, .top_down = true },
-  [3] = { .top_led = 239, .top_down = false },
+  [0] = { .first_position = 239, .reverse = true },
+  [1] = { .first_position = 120, .reverse = false },
+  [2] = { .first_position = 0, .reverse = false },
+  [3] = { .first_position = 119, .reverse = true },
 };
 
 LED_Bars bars(LED_SEGMENTS, LED_PER_SEGMENT, LED_DATA_PIN, segments);
