@@ -138,6 +138,10 @@ void LED_Bars::rand() {
   color_index = random(0, num_colors);
 }
 
+void LED_Bars::set_led_color(uint8_t x, uint8_t y, uint32_t color_value, uint8_t bright) {
+  strip.setPixelColor(map_to_position(x, y), color_value, bright);
+}
+
 void LED_Bars::set_pattern(pattern_func func) {
   unsigned int index = 0;
   for (int i = 0; i < num_patterns; i++) {
@@ -211,7 +215,7 @@ void LED_Bars::pattern() {
 void LED_Bars::fill() {
   for (int i = 0; i < n_segments; i++) {
     for (int j = 0; j < led_per_segment; j++) {
-      strip.setPixelColor(map_to_position(i, j), color(j, i, 0.0), 125);
+      set_led_color(i, j, color(j, i, 0.0), 125);
     }
   }
 }
@@ -221,7 +225,7 @@ void LED_Bars::glow() {
   int bright = sine_wave(125, 0.0002, millis(), 125);
   for (int i = 0; i < n_segments; i++) {
     for (int j = 0; j < led_per_segment; j++) {
-      strip.setPixelColor(map_to_position(i, j), color(j, i, 0.0), bright);
+      set_led_color(i, j, color(j, i, 0.0), bright);
     }
   }
 }
@@ -249,7 +253,7 @@ void LED_Bars::calc_bounce(
     for (int j = 0; j < n_segments; j++) {
       int time_offset = (j * pos_offset) + (i * line_offset);
       int pos = pos_func(amplitude, freq, millis() + time_offset, amplitude);
-      strip.setPixelColor(map_to_position(j, pos), color(pos, j, 0.0), 125);
+      set_led_color(j, pos, color(pos, j, 0.0), 125);
     }
   }
 }
@@ -331,8 +335,7 @@ void LED_Bars::cycle_sparkles(bool drift) {
           // Render valid sparkle particles
           hue_drift_value = drift == true ? particles[i][j].hue_drift : 0;
           pos = particles[i][j].position;
-          pos = map_to_position(i, pos);
-          strip.setPixelColor(pos, color(pos, i, hue_drift_value), bright);
+          set_led_color(i, pos, color(pos, i, hue_drift_value), bright);
         }
       }
     }
@@ -458,7 +461,7 @@ void LED_Bars::cycle_particles(
         if (!(position == 0 && i != active_seg)) {
           bright = glow == true ? sine_wave(125, freq, millis(), 125) : 125;
           hue_drift_value = hue_drift == true ? particles[i][j].hue_drift : 0;
-          strip.setPixelColor(map_to_position(i, position), color(position, i, hue_drift_value), bright);
+          set_led_color(i, position, color(position, i, hue_drift_value), bright);
         }
       }
     }
@@ -639,7 +642,7 @@ Return the positions above, below, left and right of a given point.
 The order of the returned points are somewhat random to remove
 affinity for the directionality of the snakes' movements
 */
-point* adjacent_points(point pnt) {
+point* Snakes::adjacent_points(point pnt) {
   int disp[4] = { 0, 1, 2, 3 };
   shuffle(disp, 4);
   static point next_points[4];
@@ -650,7 +653,7 @@ point* adjacent_points(point pnt) {
 }
 
 // Does a given point intersect with any other points
-bool LED_Bars::point_collision(point pnt) {
+bool Snakes::point_collision(point pnt) {
   for (int i = 0; i < snake_count; i++) {
     if (point_in_arr(pnt, snake_insts[i].points, snake_length) == true) {
       return true;
@@ -660,13 +663,13 @@ bool LED_Bars::point_collision(point pnt) {
 }
 
 // Is a given point within the led space and not occupied
-bool LED_Bars::valid_point(point pnt) {
+bool Snakes::valid_point(point pnt) {
   uint8_t x = pnt.x;
   uint8_t y = pnt.y;
 
-  if (x >= n_segments) {
+  if (x >= width) {
     return false;
-  } else if (y >= led_per_segment) {
+  } else if (y >= height) {
     return false;
   }
   if (point_collision(pnt) == true) {
@@ -675,11 +678,11 @@ bool LED_Bars::valid_point(point pnt) {
   return true;
 }
 
-snake LED_Bars::create_snake() {
+snake Snakes::create_snake() {
   point pnt;
   snake snake_inst;
   do {
-    pnt = { .x = random(0, n_segments), .y = random(0, led_per_segment) };
+    pnt = { .x = random(0, width), .y = random(0, height) };
   } while (!(valid_point(pnt) == true));
   for (int i = 0; i < snake_length; i++) {
     snake_inst.points[i] = pnt;  
@@ -691,33 +694,34 @@ snake LED_Bars::create_snake() {
 }
 
 // Show a series of moving segments similar to the classic snake game
-void LED_Bars::snakes() {
+void LED_Bars::moving_snakes() {
   point pnt;
   point pnt1;
   bool done = false;
   int bright = 125;
 
-  for (int i = 0; i < snake_count; i++) {
+  for (int i = 0; i < snakes.snake_count; i++) {
     for (int j = 0; j < snake_length; j++) {
-      pnt = snake_insts[i].points[j];
-      strip.setPixelColor(map_to_position(pnt.x, pnt.y), color(pnt.y, pnt.x, snake_insts[i].hue_drift), bright);
+      pnt = snakes.snake_insts[i].points[j];
+      set_led_color(pnt.x, pnt.y, color(pnt.y, pnt.x, snakes.snake_insts[i].hue_drift), bright);
     }
 
-    if (millis() - snake_insts[i].start_time > snake_insts[i].delay) {
-      snake_insts[i].start_time = millis();
-      pnt = snake_insts[i].points[0];
+    if (millis() - snakes.snake_insts[i].start_time > snakes.snake_insts[i].delay) {
+      snakes.snake_insts[i].start_time = millis();
+      point pnt;
+      pnt = snakes.snake_insts[i].points[0];
 
-      point* next_pnts = adjacent_points(pnt);
+      point* next_pnts = snakes.adjacent_points(pnt);
       int k = 0;
       for (k = 0; k < 4; k++) {
-        if (valid_point(*(next_pnts + k)) == true) {
-          arr_push(*(next_pnts + k), snake_insts[i].points, snake_length);
+        if (snakes.valid_point(*(next_pnts + k)) == true) {
+          arr_push(*(next_pnts + k), snakes.snake_insts[i].points, snake_length);
           break;
         }
       }
       if (k >= 4) {
         // Snake failed to find a valid spot and may be stuck
-        snake_insts[i] = create_snake();
+        snakes.snake_insts[i] = snakes.create_snake();
       }
     }
   }
@@ -795,7 +799,7 @@ void LED_Bars::life() {
     for (int y = 0; y < game_of_life.height; y++) {
       if (game_of_life.area[x][y] == true) {
         alive_count++;
-        strip.setPixelColor(map_to_position(x, y), color(y, x, 0), 125);
+        set_led_color(x, y, color(y, x, 0), 125);
       }
     }
   }

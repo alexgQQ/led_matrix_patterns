@@ -43,18 +43,6 @@ typedef struct Particle {
   int hue_drift = 0;
 } particle;
 
-typedef struct Point {
-  uint8_t x;
-  uint8_t y;
-} point;
-
-const uint8_t snake_length = 2;
-typedef struct Snake {
-  point points[snake_length];
-  unsigned long start_time = 0;
-  unsigned int delay = 0;
-  int hue_drift = 0;
-} snake;
 
 // Math helpers
 
@@ -76,7 +64,6 @@ int rising_calc(unsigned long time, int count, float vel);
 int falling_calc_rand(unsigned long time, int count, float vel);
 int rising_calc_rand(unsigned long time, int count, float vel);
 int gen_seg(int n_segments);
-point* adjacent_points(point pnt);
 
 class GameOfLife {
 
@@ -103,6 +90,43 @@ public:
   void random_board();
 };
 
+typedef struct Point {
+  uint8_t x;
+  uint8_t y;
+} point;
+
+const uint8_t snake_length = 1;
+
+typedef struct Snake {
+  point points[snake_length];
+  unsigned long start_time = 0;
+  unsigned int delay = 0;
+  int hue_drift = 0;
+} snake;
+
+class Snakes {
+private:
+  bool point_collision(point pnt);
+
+public:
+  uint8_t width;
+  uint8_t height;
+  const uint8_t snake_count = 1;
+  snake snake_insts[1];
+
+  Snakes(uint8_t w, uint8_t h) {
+    width = w;
+    height = h;
+    for (int i = 0; i < snake_count; i++) {
+      snake_insts[i] = create_snake();
+    }
+  }
+
+  bool valid_point(point pnt);
+  point* adjacent_points(point pnt);
+  snake create_snake();
+};
+
 class LED_Bars {
 
 private:
@@ -115,6 +139,7 @@ private:
   bool vertical = true;
 
   GameOfLife game_of_life;
+  Snakes snakes;
 
   // Member arrays have to be intiailized with a fixed static var
   segment segments[LED_SEGMENTS];
@@ -132,9 +157,6 @@ private:
   uint32_t from_hue(uint16_t hue, int drift);
   void calc_bounce(int n_waves, float freq, bool drift, int (*pos_func)(int amp, float freq, long time, int offset));
   void cycle_sparkles(bool drift);
-  bool point_collision(point pnt);
-  bool valid_point(point pnt);
-  snake create_snake();
 
   particle particles[LED_SEGMENTS][LED_PARTICLES];
   int prev_seg = -1;
@@ -166,7 +188,7 @@ private:
     &falling_drift_sparkles,
     &falling_drift_sparkle_waves,
     &rising_drift_sparkle_waves,
-    &snakes,
+    &moving_snakes,
     &life,
   };
   int num_patterns = sizeof(patterns) / sizeof(patterns[0]);
@@ -211,9 +233,6 @@ private:
   int color_index_addr = 2;
   uint32_t color(int pos, int seg, int drift);
 
-  const uint8_t snake_count = 1;
-  snake snake_insts[1];
-
 public:
 
   uint16_t n_segments;
@@ -221,17 +240,14 @@ public:
 
   LED_Bars(uint16_t n_segs, uint16_t led_per_seg, uint16_t data_pin, segment* segs)
     : strip(n_segs * led_per_seg, data_pin, NEO_GRB + NEO_KHZ800)
-    , game_of_life(n_segs, led_per_seg) {
+    , game_of_life(n_segs, led_per_seg) 
+    , snakes(n_segs, led_per_seg) {
     n_segments = n_segs;
     led_per_segment = led_per_seg;
 
     segment *old = segments;
     for(int i = 0; i < n_segs; ++i)
         *old++ = *segs++;
-
-    for (int i = 0; i < snake_count; i++) {
-      snake_insts[i] = create_snake();
-    }
   };
 
   void begin();
@@ -239,6 +255,7 @@ public:
   void render();
   void save_values();
   void load_values();
+  void set_led_color(uint8_t x, uint8_t y, uint32_t color_value, uint8_t bright);
 
   // Control functions
   void next_color();
@@ -271,7 +288,7 @@ public:
   void reverse_chaser();
   void reverse_chaser_wave();
   void rising_drift_sparkle_waves();
-  void snakes();
+  void moving_snakes();
   void life();
 
   // Color functions
