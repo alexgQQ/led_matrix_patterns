@@ -19,7 +19,7 @@ of `segment` types. These define how the strips/segments are connected.
 // Default amount of particles for various animations
 // TODO: Anything higher than 10 makes animations static, seems memory related
 #ifndef LED_PARTICLES
-#define LED_PARTICLES 10
+#define LED_PARTICLES 1
 #endif
 
 /*
@@ -48,7 +48,7 @@ typedef struct Point {
   uint8_t y;
 } point;
 
-const uint8_t snake_length = 4;
+const uint8_t snake_length = 2;
 typedef struct Snake {
   point points[snake_length];
   unsigned long start_time = 0;
@@ -78,6 +78,31 @@ int rising_calc_rand(unsigned long time, int count, float vel);
 int gen_seg(int n_segments);
 point* adjacent_points(point pnt);
 
+class GameOfLife {
+
+private:
+  bool area_n[4][60];
+
+  bool out_of_bounds(uint8_t x, uint8_t y);
+  void copy_area();
+  uint8_t live_neighbors(uint8_t x, uint8_t y);
+  bool alive(uint8_t x, uint8_t y);
+
+public:
+  uint8_t width;
+  uint8_t height;
+  bool area[4][60];
+
+  GameOfLife(uint8_t w, uint8_t h) {
+    width = w;
+    height = h;
+    random_board();
+  };
+
+  void generation();
+  void random_board();
+};
+
 class LED_Bars {
 
 private:
@@ -88,6 +113,8 @@ private:
   Adafruit_NeoPixel strip;
   bool is_off = true;
   bool vertical = true;
+
+  GameOfLife game_of_life;
 
   // Member arrays have to be intiailized with a fixed static var
   segment segments[LED_SEGMENTS];
@@ -121,7 +148,7 @@ private:
   To not duplicate this value I just compute the number of patterns
   based on this array size.
   */
-  pattern_func patterns[18] = {
+  pattern_func patterns[19] = {
     &fill,
     &glow,
     &sparkles,
@@ -140,6 +167,7 @@ private:
     &falling_drift_sparkle_waves,
     &rising_drift_sparkle_waves,
     &snakes,
+    &life,
   };
   int num_patterns = sizeof(patterns) / sizeof(patterns[0]);
   uint8_t pattern_index = 0;
@@ -183,15 +211,17 @@ private:
   int color_index_addr = 2;
   uint32_t color(int pos, int seg, int drift);
 
-  const uint8_t snake_count = 4;
-  snake snake_insts[4];
+  const uint8_t snake_count = 1;
+  snake snake_insts[1];
 
 public:
 
   uint16_t n_segments;
   uint16_t led_per_segment;
 
-  LED_Bars(uint16_t n_segs, uint16_t led_per_seg, uint16_t data_pin, segment* segs) : strip(n_segs * led_per_seg, data_pin, NEO_GRB + NEO_KHZ800) {
+  LED_Bars(uint16_t n_segs, uint16_t led_per_seg, uint16_t data_pin, segment* segs)
+    : strip(n_segs * led_per_seg, data_pin, NEO_GRB + NEO_KHZ800)
+    , game_of_life(n_segs, led_per_seg) {
     n_segments = n_segs;
     led_per_segment = led_per_seg;
 
@@ -242,6 +272,7 @@ public:
   void reverse_chaser_wave();
   void rising_drift_sparkle_waves();
   void snakes();
+  void life();
 
   // Color functions
   uint32_t red(int pos, int seg, int drift);

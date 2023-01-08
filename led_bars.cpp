@@ -723,6 +723,91 @@ void LED_Bars::snakes() {
   }
 }
 
+void GameOfLife::random_board() {
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+      area[x][y] = (bool)random(0, 2);
+    }
+  }
+}
+
+bool GameOfLife::out_of_bounds(uint8_t x, uint8_t y) {
+  return x >= width || x < 0 || y >= height || y < 0;
+}
+
+void GameOfLife::copy_area() {
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+      area[x][y] = area_n[x][y];
+    }
+  }
+}
+
+uint8_t GameOfLife::live_neighbors(uint8_t x, uint8_t y) {
+  uint8_t count = 0;
+  for (int i = -1; i < 2; i++) {
+    for (int j = -1; j < 2; j++) {
+      if ((i == 0 && j == 0) || out_of_bounds(x + i, y + j)) {
+        continue;
+      } else if (area[x + i][y + j] == true) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+bool GameOfLife::alive(uint8_t x, uint8_t y) {
+  uint8_t live_n = live_neighbors(x, y);
+  bool status = area[x][y];
+  // Any live cell with two or three live neighbours survives
+  if (status == true && (live_n == 2 || live_n == 3)) {
+    return true;
+  }
+  // Any dead cell with three live neighbours becomes a live cell
+  else if (status == false && live_n == 3) {
+    return true;
+  }
+  // All other live cells die in the next generation and all other dead cells
+  // stay dead
+  else {
+    return false;
+  }
+}
+
+void GameOfLife::generation() {
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+      if (alive(x, y) == true) {
+        area_n[x][y] = true;
+      } else {
+        area_n[x][y] = false;
+      }
+    }
+  }
+  copy_area();
+}
+
+void LED_Bars::life() {
+  uint16_t alive_count = 0;
+  bool generate = millis() - last_time > 100;
+  for (int x = 0; x < game_of_life.width; x++) {
+    for (int y = 0; y < game_of_life.height; y++) {
+      if (game_of_life.area[x][y] == true) {
+        alive_count++;
+        strip.setPixelColor(map_to_position(x, y), color(y, x, 0), 125);
+      }
+    }
+  }
+  if (generate) {
+    last_time = millis();
+    game_of_life.generation();
+  }
+  if (alive_count <= 20) {
+    game_of_life.random_board();
+  }
+}
+
 // Color Functions
 
 /*
