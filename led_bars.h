@@ -95,13 +95,12 @@ typedef struct Point {
   uint8_t y;
 } point;
 
-const uint8_t snake_length = 1;
-
 typedef struct Snake {
-  point points[snake_length];
   unsigned long start_time = 0;
   unsigned int delay = 0;
   int hue_drift = 0;
+  uint8_t length;
+  point points[];
 } snake;
 
 class Snakes {
@@ -112,7 +111,7 @@ public:
   uint8_t width;
   uint8_t height;
   const uint8_t snake_count = 1;
-  snake snake_insts[1];
+  snake* snake_insts[1];
 
   Snakes(uint8_t w, uint8_t h) {
     width = w;
@@ -124,7 +123,8 @@ public:
 
   bool valid_point(point pnt);
   point* adjacent_points(point pnt);
-  snake create_snake();
+  snake* create_snake();
+  void remove_snake(uint8_t index);
 };
 
 class LED_Bars {

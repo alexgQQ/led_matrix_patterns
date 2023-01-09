@@ -655,7 +655,7 @@ point* Snakes::adjacent_points(point pnt) {
 // Does a given point intersect with any other points
 bool Snakes::point_collision(point pnt) {
   for (int i = 0; i < snake_count; i++) {
-    if (point_in_arr(pnt, snake_insts[i].points, snake_length) == true) {
+    if (point_in_arr(pnt, snake_insts[i]->points, snake_insts[i]->length) == true) {
       return true;
     }
   }
@@ -678,19 +678,26 @@ bool Snakes::valid_point(point pnt) {
   return true;
 }
 
-snake Snakes::create_snake() {
+snake* Snakes::create_snake() {
+  uint8_t length = random(5, 10);
   point pnt;
-  snake snake_inst;
+  snake *snake_inst = malloc(sizeof(snake) + length * sizeof(point *));
+
   do {
     pnt = { .x = random(0, width), .y = random(0, height) };
   } while (!(valid_point(pnt) == true));
-  for (int i = 0; i < snake_length; i++) {
-    snake_inst.points[i] = pnt;  
+  for (int i = 0; i < length; i++) {
+    snake_inst->points[i] = pnt;  
   }
-  snake_inst.hue_drift = random(-3000, 3001);
-  snake_inst.start_time = millis();
-  snake_inst.delay = random(250, 750);
+  snake_inst->length = length;
+  snake_inst->hue_drift = random(-3000, 3001);
+  snake_inst->start_time = millis();
+  snake_inst->delay = random(250, 750);
   return snake_inst;
+}
+
+void Snakes::remove_snake(uint8_t index) {
+  free(snake_insts[index]);
 }
 
 // Show a series of moving segments similar to the classic snake game
@@ -698,29 +705,38 @@ void LED_Bars::moving_snakes() {
   point pnt;
   point pnt1;
   bool done = false;
-  int bright = 125;
+  unsigned int bright = 125;
 
   for (int i = 0; i < snakes.snake_count; i++) {
-    for (int j = 0; j < snake_length; j++) {
-      pnt = snakes.snake_insts[i].points[j];
-      set_led_color(pnt.x, pnt.y, color(pnt.y, pnt.x, snakes.snake_insts[i].hue_drift), bright);
+    for (int j = 0; j < snakes.snake_insts[i]->length; j++) {
+      pnt = snakes.snake_insts[i]->points[j];
+      if (j == 0) {
+        bright = (millis() - snakes.snake_insts[i]->start_time) * 125 / snakes.snake_insts[i]->delay;
+      } else if (j == snakes.snake_insts[i]->length - 1 && !point_eq(pnt, snakes.snake_insts[i]->points[j - 1])) {
+        bright = (millis() - snakes.snake_insts[i]->start_time) * 125 / snakes.snake_insts[i]->delay;
+        bright = 130 - bright;
+      } else {
+        bright = 125;
+      }
+      set_led_color(pnt.x, pnt.y, color(pnt.y, pnt.x, snakes.snake_insts[i]->hue_drift), bright);
     }
 
-    if (millis() - snakes.snake_insts[i].start_time > snakes.snake_insts[i].delay) {
-      snakes.snake_insts[i].start_time = millis();
+    if (millis() - snakes.snake_insts[i]->start_time > snakes.snake_insts[i]->delay) {
+      snakes.snake_insts[i]->start_time = millis();
       point pnt;
-      pnt = snakes.snake_insts[i].points[0];
+      pnt = snakes.snake_insts[i]->points[0];
 
       point* next_pnts = snakes.adjacent_points(pnt);
       int k = 0;
       for (k = 0; k < 4; k++) {
         if (snakes.valid_point(*(next_pnts + k)) == true) {
-          arr_push(*(next_pnts + k), snakes.snake_insts[i].points, snake_length);
+          arr_push(*(next_pnts + k), snakes.snake_insts[i]->points, snakes.snake_insts[i]->length);
           break;
         }
       }
       if (k >= 4) {
         // Snake failed to find a valid spot and may be stuck
+        snakes.remove_snake(i);
         snakes.snake_insts[i] = snakes.create_snake();
       }
     }
