@@ -700,45 +700,51 @@ void Snakes::remove_snake(uint8_t index) {
   free(snake_insts[index]);
 }
 
+void Snakes::move_snake(uint8_t index) {
+  point pnt;
+  pnt = snake_insts[index]->points[0];
+
+  point* next_pnts = adjacent_points(pnt);
+  int k = 0;
+  for (k = 0; k < 4; k++) {
+    if (valid_point(*(next_pnts + k)) == true) {
+      arr_push(*(next_pnts + k), snake_insts[index]->points, snake_insts[index]->length);
+      break;
+    }
+  }
+  if (k >= 4) {
+    // Snake failed to find a valid spot and may be stuck
+    remove_snake(index);
+    snake_insts[index] = create_snake();
+  }
+}
+
 // Show a series of moving segments similar to the classic snake game
 void LED_Bars::moving_snakes() {
   point pnt;
   point pnt1;
   bool done = false;
   unsigned int bright = 125;
+  snake* snake_inst;
 
   for (int i = 0; i < snakes.snake_count; i++) {
-    for (int j = 0; j < snakes.snake_insts[i]->length; j++) {
-      pnt = snakes.snake_insts[i]->points[j];
+    snake_inst = snakes.snake_insts[i];
+    for (int j = 0; j < snake_inst->length; j++) {
+      pnt = snake_inst->points[j];
       if (j == 0) {
-        bright = (millis() - snakes.snake_insts[i]->start_time) * 125 / snakes.snake_insts[i]->delay;
-      } else if (j == snakes.snake_insts[i]->length - 1 && !point_eq(pnt, snakes.snake_insts[i]->points[j - 1])) {
-        bright = (millis() - snakes.snake_insts[i]->start_time) * 125 / snakes.snake_insts[i]->delay;
+        bright = (millis() - snake_inst->start_time) * 125 / snake_inst->delay;
+      } else if (j == snake_inst->length - 1 && !point_eq(pnt, snake_inst->points[j - 1])) {
+        bright = (millis() - snake_inst->start_time) * 125 / snake_inst->delay;
         bright = 130 - bright;
       } else {
         bright = 125;
       }
-      set_led_color(pnt.x, pnt.y, color(pnt.y, pnt.x, snakes.snake_insts[i]->hue_drift), bright);
+      set_led_color(pnt.x, pnt.y, color(pnt.y, pnt.x, snake_inst->hue_drift), bright);
     }
 
-    if (millis() - snakes.snake_insts[i]->start_time > snakes.snake_insts[i]->delay) {
-      snakes.snake_insts[i]->start_time = millis();
-      point pnt;
-      pnt = snakes.snake_insts[i]->points[0];
-
-      point* next_pnts = snakes.adjacent_points(pnt);
-      int k = 0;
-      for (k = 0; k < 4; k++) {
-        if (snakes.valid_point(*(next_pnts + k)) == true) {
-          arr_push(*(next_pnts + k), snakes.snake_insts[i]->points, snakes.snake_insts[i]->length);
-          break;
-        }
-      }
-      if (k >= 4) {
-        // Snake failed to find a valid spot and may be stuck
-        snakes.remove_snake(i);
-        snakes.snake_insts[i] = snakes.create_snake();
-      }
+    if (millis() - snake_inst->start_time > snake_inst->delay) {
+      snake_inst->start_time = millis();
+      snakes.move_snake(i);
     }
   }
 }

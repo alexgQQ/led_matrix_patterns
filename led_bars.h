@@ -106,6 +106,8 @@ typedef struct Snake {
 class Snakes {
 private:
   bool point_collision(point pnt);
+  bool valid_point(point pnt);
+  point* adjacent_points(point pnt);
 
 public:
   uint8_t width;
@@ -121,8 +123,7 @@ public:
     }
   }
 
-  bool valid_point(point pnt);
-  point* adjacent_points(point pnt);
+  void move_snake(uint8_t index);
   snake* create_snake();
   void remove_snake(uint8_t index);
 };
